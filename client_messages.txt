@@ -1,0 +1,76 @@
+                  MESSAGE FORMAT
+*******************************************************
+
+-----------------------------------------------------------
+| <method> | sp | <hostname> | sp | <IP address> | \r | \n |
+ ----------------------------------------------------------
+|       <value1>      | sp |      <value2>       | \r | \n |
+----- -----------------------------------------------------
+|       <value1>      | sp |      <value2>       | \r | \n |
+ ----------------------------------------------------------
+|                          :                               |
+|                          :                               |
+ ----------------------------------------------------------
+|       <value1>      | sp |      <value2>       | \r | \n |
+ ----------------------------------------------------------
+| \r | \n |
+ ---------
+
+************************************************************
+NOTES: All fields within the message are text.
+      The _sp_ fields represent a single space character,
+        ASCII Dec(32).
+      \r is the CR character, ASCII Dec(13).
+      \n is the LF character, ASCII Dec(10).
+
+<method> ==> INFORM | REMOVE | QUERY | LIST | EXIT
+<hostname> ==> hostname of sender
+<IP address> ==> IP address of sender in quad-dotted decimal notation
+                 (e.g., 192.168.1.10)
+<value1>, <value2> ==> specific to each method (details below)
+
+
+INFORM
+******
+    Inform and update notification of shared MP3 file(s).
+    <value1> ==> Filename of shared file as a quoted string
+                 (e.g., "Happy Birthday.mp3")
+    <value2> ==> Filesize in bytes
+
+REMOVE
+******
+    Inform and update notification of unshared MP3 file(s).
+    <value1> ==> Filename of file to unshare as a quoted string
+                 (e.g., "Happy Birthday.mp3")
+    <value2> ==> Filesize in bytes
+
+QUERY
+*****
+    Filename search query. 
+    <value1> ==> Substring to search for - within filenames stored in the database
+                 server - as a quoted string (e.g., "Birthday" will search for all
+                 filenames which contain the string "Birthday". Case matters. To
+                 search for quotation marks within a filename, they must be
+                 quoted).
+    <value2> ==> Hostname of the specific client to search, if known. If this field 
+                 matches the <hostname> field in the message header (i.e., if the
+                 hostname is that of THIS client), search all filenames stored in
+                 the server EXCEPT those which match the hostname (i.e., files 
+                 which THIS client has shared).
+
+LIST
+****
+    Request a list of all files shared on the server, or by a specific client.
+    <value1> ==> Hostname of the client's files to list. If this field matches
+                 the <hostname> field in the message header (i.e., if the hostname
+                 is that of THIS client), return a list of all filenames stored in
+                 the server EXCEPT those which match the hostname (i.e., files
+                 which THIS client has shared).
+    <value2> ==> Unused. Must be a non-empty, non-whitespace string.
+
+EXIT
+****
+    Notify server of disconnection from the P2P network. Server will remove all of 
+    this clients shared file entries from the database.
+    <value1>, <value2> ==> DO NOT EXIST for this message type. The message header
+                           should immediately be followed by a blank line.

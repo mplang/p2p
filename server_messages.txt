@@ -1,0 +1,82 @@
+            SERVER RESPONSE MESSAGE FORMAT
+*******************************************************
+
+ ------------------------------------------------
+| <status code> | sp | <status phrase> | \r | \n |
+ ------------------------------------------------
+|    <value1>   | sp |    <value2>     | \r | \n |
+ ------------------------------------------------
+|    <value1>   | sp |    <value2>     | \r | \n |
+ ------------------------------------------------
+|                       :                        |
+|                       :                        |
+ ------------------------------------------------
+|    <value1>   | sp |    <value2>     | \r | \n |
+ ------------------------------------------------
+| \r | \n |
+ ---------
+
+*******************************************************
+NOTES: All fields within the message are text.
+       The _sp_ fields represent a single space character,
+            ASCII Dec(32).
+       \r is the CR character, ASCII Dec(13).
+       \n is the LF character, ASCII Dec(10).
+
+STATUS CODES/PHRASES
+********************
+
+200 OK
+******
+    Acknowledges successful receipt of INFORM, REMOVE, and EXIT messages.
+    <status code> ==> 200
+    <status phrase> ==> OK
+    <value1> ==> INFORM | REMOVE | EXIT
+    <value2> ==> Number of entries added or removed from the database.
+
+202 IDENTOK
+***********
+    Acknowledges successful receipt of INFORM, REMOVE, and EXIT messages.
+    <status code> ==> 202
+    <status phrase> ==> OK
+    <value1> ==> IDENT
+    <value2> ==> Hostname value as received by the server (should be the
+                 same value sent by the client).
+
+400 ERROR
+*********
+    Acknowledges receipt of INFORM, REMOVE, QUERY, LIST, and EXIT messages,
+        and notifies sender that some error has occurred in processing.
+    <status code> ==> 400
+    <status phrase> ==> ERROR
+    <value1> ==> INFORM | REMOVE | QUERY | LIST | EXIT
+    <value2> ==> Error message as quoted string. Format for this message is
+                 not specified by this standard.
+
+800 QUERYRESPONSE
+*****************
+    Acknowledges receipt of QUERY message and returns the query results. If there
+        are no results, an ERROR message is returned with QUERY as the method.
+    Note: This response uses two consecutive value lines per query match.
+    <status code> ==> 800
+    <status phrase> ==> QUERYRESPONSE
+    <value1-1> ==> Hostname of the owner of the file
+    <value2-1> ==> IP address (as stored on the server) of the owner of the file
+                   in quad-dotted decimal notation (e.g., 192.168.1.10)
+    <value1-2> ==> Filename of a shared file as a quoted string
+                   (e.g., "Happy Birthday.mp3")
+    <value2-2> ==> Filesize in bytes
+
+842 LISTRESPONSE
+*****************
+    Acknowledges receipt of LIST message and returns the list results. If there
+        are no results, the header field is immediately followed by a blank line.
+    Note: This response uses two consecutive value lines.
+    <status code> ==> 842
+    <status phrase> ==> LISTRESPONSE
+    <value1-1> ==> Filename of a shared file as a quoted string
+                   (e.g., "Happy Birthday.mp3")
+    <value2-1> ==> Filesize in bytes
+    <value1-2> ==> Hostname of the owner of the file
+    <value2-2> ==> Public-facing IP address (as stored on the server) of the owner
+                   of the file in quad-dotted decimal notation (e.g., 192.168.1.10)
