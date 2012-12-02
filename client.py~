@@ -68,7 +68,7 @@ try:
         print("\t-->Sent INFORM message successfully!")
 
     # QUERY test
-    msg.query(shared_files[0][0])
+    msg.query(shared_files[0])
     print("==>Sending QUERY message to server.")
     msg_success = r.send(comm_id, repr(msg), (serverHost, serverPort))
     increment_comm_id()
