@@ -2,7 +2,7 @@
 server.py
 Author: Michael P. Lang
 Email: michael@mplang.net
-Date Modified: 1 December 2012
+Date Modified: 2 December 2012
 """
 
 import sys
@@ -13,12 +13,19 @@ import time
 import queue
 import threading
 from _thread import interrupt_main
+import random
 
 import rdt
 import servermsg
 
-host = ''
-port = 50001
+# port to bind to
+listen_port = 50001
+
+MAX_COMM_ID = 2147483647
+# Each message corresponds to a unique comm_id
+comm_id = random.randrange(MAX_COMM_ID)
+
+r = rdt.Rdt(socket.gethostname())
 
 activity_tracker = {}
 dbname = "filedir.db"
@@ -30,6 +37,14 @@ def now():
 
     """
     return time.ctime(time.time())
+
+
+def increment_comm_id():
+    global comm_id
+    if comm_id == MAX_COMM_ID:
+        comm_id = 1
+    else:
+        comm_id += 1
 
 
 def init_database():
@@ -73,6 +88,7 @@ def process_message(message):
         activity_tracker[(client_id, client_ip_addr)] = time.time()
         msg.identok(client_id)
         print(('*' * 25) + '\n' + repr(msg) + '\n' + ('*' * 25))
+        r.send(123, repr(msg), ("127.0.0.1", 60001))
     elif method == "INFORM":
         print("==>Server received INFORM message from {} @ {} at {}.".
               format(client_id, client_ip_addr, now()))
@@ -81,6 +97,7 @@ def process_message(message):
         activity_tracker[(client_id, client_ip_addr)] = time.time()
         msg.ok("INFORM", str(num_entries))
         print(('*' * 25) + '\n' + repr(msg) + '\n' + ('*' * 25))
+        r.send(124, repr(msg), ("127.0.0.1", 60001))
     elif method == "QUERY":
         print("==>Server received QUERY message from {}@{} at {}.".
               format(client_id, client_ip_addr, now()))
@@ -115,7 +132,7 @@ def database_add(host_id, host_ip_addr, body):
 
 
 def database_query(body):
-    search_string, search_host = ([(' '.join(entry[:-1]), entry[-1]) 
+    search_string, search_host = ([(' '.join(entry[:-1]), entry[-1])
                                   for entry in [line.split(' ') for line in body]][0])
     c = sqlite3.connect(dbname)
     with c:
@@ -150,10 +167,9 @@ def database_remove_host(host_id):
     return c.total_changes
 
 
-def server(host, port):
-    r = rdt.Rdt(socket.gethostname())
+def server(listen_port):
     try:
-        r.start_server(port)
+        r.start_server(listen_port)
         stdin_thread = threading.Thread(target=stdin_listener, args=())
         stdin_thread.start()
         while True:
@@ -180,4 +196,4 @@ def server(host, port):
 
 if __name__ == "__main__":
     init_database()
-    server(host, port)
+    server(listen_port)

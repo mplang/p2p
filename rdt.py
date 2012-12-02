@@ -27,6 +27,7 @@ class Rdt(object):
         """
         self.hostname = hostname
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.message_queue = queue.Queue()
         self.stdout_lock = threading.Lock()
         self.fragments = {}
@@ -51,11 +52,11 @@ class Rdt(object):
 
         Arguments:
         data -- the (unencoded) upper-layer data to transmit.
-        dest_address -- the destination IP address/FQDN and port passed as a
-                        2-tuple.
+        address -- the destination IP address/FQDN and port passed as a
+                   2-tuple.
 
         Returns:
-        True is upper-layer data was sent successfully, else returns False.
+        True if upper-layer data was sent successfully, else returns False.
 
         """
         for header, packet in self.make_packets(comm_id, data):
@@ -70,6 +71,7 @@ class Rdt(object):
                     self.increment_seq_number()
                     return False
 
+                print("Sending to {} @ {}".format(address[0], address[1]))
                 self.sock.sendto(packet.encode(), address)
                 self.sock.settimeout(self.timeout_interval)
                 while True:
@@ -86,7 +88,6 @@ class Rdt(object):
                         # Transmission timed-out
                         # TODO: Catch only timeout exceptions
                         self.timeout_interval *= 2
-                        retries += 1
                         ack_seq = 0
                         break
                 retries += 1
@@ -155,8 +156,8 @@ class Rdt(object):
 
         """
         with self.stdout_lock:
-            print("Server started at {} on port {}.".format(self.now(), port))
-        self.sock.bind(('', port))
+            print("Listening started at {} on port {}.".format(self.now(), port))
+        self.listen_sock.bind(('', port))
         thread = threading.Thread(target=self.listen_thread, args=())
         thread.start()
         #_thread.start_new(self.listen_thread, ())
@@ -167,7 +168,7 @@ class Rdt(object):
 
         """
         while True:
-            data, address = self.sock.recvfrom(1024)
+            data, address = self.listen_sock.recvfrom(1024)
             if not data:
                 break
             thread = threading.Thread(target=self.process_pkt, args=(data, address))
@@ -239,6 +240,7 @@ class Rdt(object):
 
         """
         self.sock.close()
+        self.listen_sock.close()
 
     def now(self):
         """
