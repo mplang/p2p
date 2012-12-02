@@ -71,7 +71,7 @@ class Rdt(object):
                     self.increment_seq_number()
                     return False
 
-                print("Sending to {} @ {}".format(address[0], address[1]))
+                #print("Sending to {} @ {}".format(address[0], address[1]))
                 self.sock.sendto(packet.encode(), address)
                 self.sock.settimeout(self.timeout_interval)
                 while True:

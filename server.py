@@ -3,6 +3,10 @@ server.py
 Author: Michael P. Lang
 Email: michael@mplang.net
 Date Modified: 2 December 2012
+
+Notes:
+    As it stands, the server doesn't check for duplicate files
+    shared by a given client.
 """
 
 import sys
@@ -88,7 +92,8 @@ def process_message(message):
         activity_tracker[(client_id, client_ip_addr)] = time.time()
         msg.identok(client_id)
         print(('*' * 25) + '\n' + repr(msg) + '\n' + ('*' * 25))
-        r.send(123, repr(msg), ("127.0.0.1", 60001))
+        increment_comm_id()
+        r.send(comm_id, repr(msg), ("127.0.0.1", 60001))
     elif method == "INFORM":
         print("==>Server received INFORM message from {} @ {} at {}.".
               format(client_id, client_ip_addr, now()))
@@ -97,7 +102,8 @@ def process_message(message):
         activity_tracker[(client_id, client_ip_addr)] = time.time()
         msg.ok("INFORM", str(num_entries))
         print(('*' * 25) + '\n' + repr(msg) + '\n' + ('*' * 25))
-        r.send(124, repr(msg), ("127.0.0.1", 60001))
+        increment_comm_id()
+        r.send(comm_id, repr(msg), ("127.0.0.1", 60001))
     elif method == "QUERY":
         print("==>Server received QUERY message from {}@{} at {}.".
               format(client_id, client_ip_addr, now()))
@@ -107,6 +113,8 @@ def process_message(message):
         activity_tracker[(client_id, client_ip_addr)] = time.time()
         msg.queryresponse(result_list)
         print(('*' * 25) + '\n' + repr(msg) + '\n' + ('*' * 25))
+        increment_comm_id()
+        r.send(comm_id, repr(msg), ("127.0.0.1", 60001))
     elif method == "REMOVE":
         print("==>Server received REMOVE message from {}@{} at {}.".
               format(client_id, client_ip_addr, now()))
