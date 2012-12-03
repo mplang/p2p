@@ -92,6 +92,12 @@ def stdin_listener():
             connected_clients = get_db_clients()
             with stdout_lock:
                 print("\t-->{} connected clients.".format(len(connected_clients)))
+        elif kybd_in[0] == "verbose":
+            global verbose
+            if verbose:
+                verbose = False
+            else:
+                verbose = True
         else:
             with stdout_lock:
                 print("***Invalid Input!")
