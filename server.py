@@ -93,7 +93,7 @@ def process_message(message):
         msg.identok(client_id)
         print(('*' * 25) + '\n' + repr(msg) + '\n' + ('*' * 25))
         increment_comm_id()
-        r.send(comm_id, repr(msg), ("127.0.0.1", 60001))
+        r.send(comm_id, repr(msg), (client_ip_addr, 60001))
     elif method == "INFORM":
         print("==>Server received INFORM message from {} @ {} at {}.".
               format(client_id, client_ip_addr, now()))
@@ -103,7 +103,7 @@ def process_message(message):
         msg.ok("INFORM", str(num_entries))
         print(('*' * 25) + '\n' + repr(msg) + '\n' + ('*' * 25))
         increment_comm_id()
-        r.send(comm_id, repr(msg), ("127.0.0.1", 60001))
+        r.send(comm_id, repr(msg), (client_ip_addr, 60001))
     elif method == "QUERY":
         print("==>Server received QUERY message from {}@{} at {}.".
               format(client_id, client_ip_addr, now()))
@@ -114,7 +114,7 @@ def process_message(message):
         msg.queryresponse(result_list)
         print(('*' * 25) + '\n' + repr(msg) + '\n' + ('*' * 25))
         increment_comm_id()
-        r.send(comm_id, repr(msg), ("127.0.0.1", 60001))
+        r.send(comm_id, repr(msg), (client_ip_addr, 60001))
     elif method == "REMOVE":
         print("==>Server received REMOVE message from {}@{} at {}.".
               format(client_id, client_ip_addr, now()))
@@ -186,6 +186,7 @@ def server(listen_port):
             for activity in activity_tracker:
                 if curr_time - activity_tracker[activity] > 3600:
                     # Clean database of hosts with activity more than one hour ago.
+                    print("Remove host from database: {}".format(activity[0]))
                     database_remove_host(activity[0])
             try:
                 message = r.receive_data()

@@ -5,7 +5,7 @@ Email: michael@mplang.net
 Date Modified: 2 December 2012
 """
 
-from socket import gethostname, gethostbyname
+import socket
 import random
 import fnmatch
 import os
@@ -20,20 +20,19 @@ import clientmsg
 
 
 """Set default values."""
-serverHost = "localhost"
-serverPort = 50001
-listenPort = 60001
+default_server_host = "localhost"
+default_server_port = 50001
+default_p2p_server_port = 50001
 default_share = "mp3"
 shared_files = []
-hostname = gethostname()
+hostname = socket.gethostname()
 host_id = hostname + "{:04x}".format(random.randrange(0xffff))
-# port to bind to
-listen_port = 60001
+# udp port to bind to
+default_udp_listen_port = 60001
 r = rdt.Rdt(host_id)
 MAX_COMM_ID = 2147483647
 # Each message corresponds to a unique comm_id
 comm_id = random.randrange(MAX_COMM_ID)
-msg = clientmsg.ClientMsg(host_id, gethostbyname(hostname))
 msg_queue = queue.Queue()
 connected = False
 current_query = []
@@ -45,6 +44,15 @@ def increment_comm_id():
         comm_id = 1
     else:
         comm_id += 1
+
+
+def get_ip_address():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    ip_addr = s.getsockname()[0]
+    s.close()
+
+    return ip_addr
 
 
 def get_shared_files(shared_dir):
@@ -85,9 +93,11 @@ def stdin_listener():
             interrupt_main()
         elif kybd_in[0] == "usage":
             usage()
+        elif kybd_in[0] == "status":
+            status()
         elif kybd_in[0] == "connect":
             if len(kybd_in) == 1:
-                ident(serverHost, serverPort)
+                ident(server_host, server_port)
             elif len(kybd_in) != 3:
                 print("***Invalid input!")
             else:
@@ -106,19 +116,24 @@ def stdin_listener():
                 query(kybd_in[1])
             else:
                 print("***Invalid input!")
-        elif kybd_in[0] == "status":
-            status()
+        elif kybd_in[0] == "get":
+            if len(kybd_in) == 2:
+                get(kybd_in[1])
+            else:
+                print("***Invalid input!")
         else:
             print("***Invalid input!")
 
 
 def status():
     print("\nHost ID: {}\nSharing {} files".format(host_id, len(shared_files)))
+    print("P2P Listening Port: {}".format(p2p_server_port))
     if connected:
         print("Connected to a directory server.")
     else:
         print("Not connected to a directory server.")
     print("")
+
 
 def process_message(message):
     # ignore empty lines
@@ -155,7 +170,7 @@ def share(shared_dir):
         msg.inform(matches)
         print("==>Sending INFORM message to server.")
         msg_queue.queue.clear()
-        msg_success = r.send(comm_id, repr(msg), (serverHost, serverPort))
+        msg_success = r.send(comm_id, repr(msg), (server_host, server_port))
         increment_comm_id()
         if msg_success:
             print("\t-->Sent INFORM message successfully!")
@@ -177,7 +192,7 @@ def query(search_string, hostname=''):
         msg.query(search_string, hostname)
         print("==>Sending QUERY message to server.")
         msg_queue.queue.clear()
-        msg_success = r.send(comm_id, repr(msg), (serverHost, serverPort))
+        msg_success = r.send(comm_id, repr(msg), (server_host, server_port))
         increment_comm_id()
         if msg_success:
             print("\t-->Sent QUERY message successfully!")
@@ -204,6 +219,7 @@ def process_query_response(query_response):
         filename = ' '.join(filename[:-1])
         current_query.append((host_id, ip_addr, filename, filesize))
 
+
 def print_current_query():
     if len(current_query) != 0:
         for i, line in enumerate(current_query):
@@ -218,7 +234,7 @@ def stuff():
         # REMOVE test
         msg.remove([shared_files[0]])
         print("==>Sending REMOVE message to server.")
-        msg_success = r.send(comm_id, repr(msg), (serverHost, serverPort))
+        msg_success = r.send(comm_id, repr(msg), (server_host, server_port))
         increment_comm_id()
         if not msg_success:
             print("\t-->Failed to deliver REMOVE message!")
@@ -228,7 +244,7 @@ def stuff():
         # QUERY test
         msg.query(shared_files[0])
         print("==>Sending QUERY message to server.")
-        msg_success = r.send(comm_id, repr(msg), (serverHost, serverPort))
+        msg_success = r.send(comm_id, repr(msg), (server_host, server_port))
         increment_comm_id()
         if not msg_success:
             print("\t-->Failed to deliver QUERY message!")
@@ -238,12 +254,82 @@ def stuff():
         r.close()
 
 
-def start_client(listen_port):
+def get(query_index):
+    query_index = int(query_index)
+    if query_index >= len(current_query):
+        print("\t-->Invalid index!")
+    else:
+        req_file = current_query[query_index]
+        print(req_file)
+        get_msg = "GET {} 1.1\r\n\r\n".format(req_file[2])
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((req_file[1], p2p_server_port))
+        s.send(get_msg.encode())
+        #data = s.recv(BUFFER_SIZE)
+        writefile = open(req_file[2], 'wb')
+        print("Waiting for file...")
+        length = int(req_file[3])
+        data = s.recv(min(1024, length))
+        writefile.write(data)
+        length -= len(data)
+        print("Receiving file...")
+        while(length > 0):
+            data = s.recv(min(1024, length))
+            writefile.write(data)
+            length -= len(data)
+        s.close()
+        print("File download complete!")
+
+
+def send_file(conn, data):
+    print("\t-->Peer request: {}".format(data))
+    data = data.split(" ")
+    method = data[0]
+    version = data[-1]
+    filename = ' '.join(data[1:-1])
+    sendfile = open(filename, 'rb')
+    filedata = sendfile.read()
+    conn.sendall(filedata)
+    conn.close()
+
+
+def tcp_listener():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('', p2p_server_port))
+    s.listen(5)
+
+    while True:
+        conn, addr = s.accept()
+        print("==>Connected by peer {}".format(addr))
+        data = conn.recv(1024)
+        if not data:
+            break
+        data = data.decode()
+        send_file(conn, data)
+    s.close()
+
+
+def start_client(server_ip=default_server_host, server_prt=default_server_port,
+                 p2p_server_prt=default_p2p_server_port,
+                 udp_listen_prt=default_udp_listen_port):
+    global server_host
+    global server_port
+    global p2p_server_port
+    global udp_listen_port
+    global msg
+    server_host = server_ip
+    server_port = int(server_prt)
+    p2p_server_port = int(p2p_server_prt)
+    udp_listen_port = int(udp_listen_prt)
+    msg = clientmsg.ClientMsg(host_id, get_ip_address())
+
     try:
-        r.start_server(listen_port)
+        r.start_server(udp_listen_port)
         # Listen to terminal input from keyboard
         stdin_thread = threading.Thread(target=stdin_listener, args=())
         stdin_thread.start()
+        tcp_thread = threading.Thread(target=tcp_listener, args=())
+        tcp_thread.start()
         while True:
             # Client loop
             try:
@@ -263,4 +349,18 @@ def start_client(listen_port):
 
 
 if __name__ == "__main__":
-    start_client(listen_port)
+    """
+    Usage:
+        python3 client.py [server_ip [server_port [p2p_server_port [udp_listen_port]]]]
+
+    """
+    if len(sys.argv) == 5:
+        start_client(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    elif len(sys.argv) == 4:
+        start_client(sys.argv[1], sys.argv[2], sys.argv[3])
+    elif len(sys.argv) == 3:
+        start_client(sys.argv[1], sys.argv[2])
+    elif len(sys.argv) == 2:
+        start_client(sys.argv[1])
+    else:
+        start_client()
