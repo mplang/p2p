@@ -69,6 +69,10 @@ class ClientMsg(object):
         for line in file_list:
             self.body = "{}{} {}\r\n".format(self.body, line[0], line[1])
 
+    def exit(self):
+        self.method = "EXIT"
+        self.body = ""
+
     def __repr__(self):
         self.message = "{} {} {}\r\n{}\r\n".format(self.method, self.hostname, self.ip_address, self.body)
 

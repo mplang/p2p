@@ -155,8 +155,6 @@ class Rdt(object):
         port -- The port number to listen on.
 
         """
-        with self.stdout_lock:
-            print("Listening started at {} on port {}.".format(self.now(), port))
         self.listen_sock.bind(('', port))
         thread = threading.Thread(target=self.listen_thread, args=())
         thread.start()
@@ -209,7 +207,7 @@ class Rdt(object):
         data -- An RDT packet.
 
         Returns:
-        A tuple containing the RDT header(as a list) and the upper-layer 
+        A tuple containing the RDT header(as a list) and the upper-layer
         message payload string.
 
         """
