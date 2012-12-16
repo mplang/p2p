@@ -285,7 +285,9 @@ def get(query_index):
         req_file = current_query[query_index]
         with stdout_lock:
             print(req_file)
-        get_msg = "GET {} 1.1\r\n\r\n".format(req_file[2])
+        get_msg = "GET {} HTTP/1.1\r\n\r\n".format(req_file[2])
+        # "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n".format(filelength)
+        # if content-length != database file length: FAILED!
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((req_file[1], p2p_server_port))
         s.send(get_msg.encode())
@@ -308,21 +310,26 @@ def get(query_index):
             print("File download complete!")
 
 
-def send_file(conn, addr, data):
+def send_file(conn, addr):
     with stdout_lock:
-        print("\t-->Peer request: {}".format(data))
-    data = data.split(" ")
-    method = data[0]
-    version = data[-1]
-    filename = ' '.join(data[1:-1])
-    sendfile = open(filename, 'rb')
-    with stdout_lock:
-        print("\t-->Sending file to peer {}".format(addr))
-    filedata = sendfile.read()
-    conn.sendall(filedata)
-    conn.close()
-    with stdout_lock:
-        print("\t-->File transfer complete!")
+        print("==>Connected by peer {}".format(addr))
+    data = conn.recv(1024)
+    if data:
+        data = data.decode()
+        with stdout_lock:
+            print("\t-->Peer request: {}".format(data))
+        data = data.split(" ")
+        method = data[0]
+        version = data[-1]
+        filename = ' '.join(data[1:-1])
+        sendfile = open(filename, 'rb')
+        with stdout_lock:
+            print("\t-->Sending file to peer {}".format(addr))
+        filedata = sendfile.read()
+        conn.sendall(filedata)
+        conn.close()
+        with stdout_lock:
+            print("\t-->File transfer complete!")
 
 
 def tcp_listener():
@@ -332,13 +339,8 @@ def tcp_listener():
 
     while True:
         conn, addr = s.accept()
-        with stdout_lock:
-            print("==>Connected by peer {}".format(addr))
-        data = conn.recv(1024)
-        if not data:
-            break
-        data = data.decode()
-        send_file(conn, addr, data)
+        file_send_thread = threading.Thread(target=send_file, args=(conn, addr))
+        file_send_thread.start()
     s.close()
 
 
