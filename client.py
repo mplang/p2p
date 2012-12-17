@@ -21,22 +21,34 @@ import clientmsg
 
 
 """Set default values."""
-default_server_host = "localhost"
-default_server_port = 50001
-default_p2p_server_port = 50001
-default_share = "mp3"
-shared_files = []
-hostname = socket.gethostname()
-host_id = hostname + "{:04x}".format(random.randrange(0xffff))
-# udp port to bind to
-default_udp_listen_port = 60001
-r = rdt.Rdt(host_id)
 MAX_COMM_ID = 2147483647
+# Hostname/IP address of directory server
+default_server_host = "localhost"
+# UDP port of directory server
+default_server_port = 50001
+# TCP port to listen for P2P clients on
+default_p2p_server_port = 50001
+# UDP port to listen to response message from server
+default_udp_listen_port = 60001
+# Base folder of shared files
+default_share = "mp3"
+# List of files shared with the directory server
+shared_files = []
+
+hostname = socket.gethostname()
+# Append a random 16-bit hex string to the hostname
+host_id = hostname + "{:04x}".format(random.randrange(0xffff))
+# Instantiate instance of Rdt class
+r = rdt.Rdt(host_id)
 # Each message corresponds to a unique comm_id
 comm_id = random.randrange(MAX_COMM_ID)
+# Queue to hold response messages from directory server
 msg_queue = queue.Queue()
+# Flag to prevent sending messages to server before IDENT
 connected = False
+# Most recent query response from server
 current_query = []
+# For thread-safe I/O
 stdout_lock = threading.Lock()
 
 
